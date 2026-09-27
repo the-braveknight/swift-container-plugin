@@ -31,6 +31,9 @@ jobs:
               run: |
                 which bsdtar || (apt-get -q update && apt-get -yq install libarchive-tools)
 
+            - name: Check plugin artifact discovery
+              run: bash scripts/test-plugin-artifact-discovery.sh
+
             - name: Run test job
               env:
                   REGISTRY_HOST: registry

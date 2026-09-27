@@ -86,11 +86,16 @@ extension PluginError: CustomStringConvertible {
         guard result.succeeded else { throw PluginError.buildError }
 
         // Get the list of built executables from the build result.
-        let builtExecutables = result.builtArtifacts.filter { $0.kind == .executable }
+        let executableURL = try BuiltExecutable.find(
+            productName: productName,
+            reportedURLs: result.builtArtifacts.filter { $0.kind == .executable }.map { $0.url },
+            packageDirectory: context.package.directoryURL
+        )
 
-        for built in builtExecutables { Diagnostics.remark("Built product: \(built.url.path)") }
+        Diagnostics.remark("Built product: \(executableURL.path)")
 
-        let resourcesBundle = builtExecutables[0].url
+        let resourcesBundle =
+            executableURL
             .deletingLastPathComponent()
             .appendingPathComponent(
                 "\(context.package.displayName)_\(productName).resources"
@@ -113,7 +118,7 @@ extension PluginError: CustomStringConvertible {
         let helperURL = try context.tool(named: "containertool").url
         let helperArgs =
             resources.map { "--resources=\($0)" }
-            + builtExecutables.map { $0.url.path }
+            + [executableURL.path]
             + extractor.remainingArguments
         let helperEnv = ProcessInfo.processInfo.environment.filter { $0.key.starts(with: "CONTAINERTOOL_") }
         // Capture before entering the task group so the package directory is Sendable.
