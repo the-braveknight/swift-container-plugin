@@ -45,6 +45,20 @@ registry.example.com/myservice@sha256:a3f75d0932d052dd9d448a1c9040b16f9f2c2ed919
 When the plugin finishes, it prints a reference identifying the new image.
 Any standard container runtime can use the reference to pull and run your service.
 
+### Swift 6.4 Swift Build on macOS
+
+When cross-compiling with Swift 6.4, Swift Build can build `containertool` for Linux while reporting a host tool path such as `.build/out/Products/Release/containertool`. The Linux binary cannot run on macOS, and the reported host binary may not exist. Executable artifact discovery alone cannot repair a missing host tool.
+
+Build the helper for the host first, without `--swift-sdk`, using the same configuration and scratch directory as the plugin command:
+
+```shell
+swift build --configuration release --product containertool
+swift package --swift-sdk aarch64-swift-linux-musl --configuration release \
+    build-container-image --repository registry.example.com/myservice
+```
+
+This keeps both commands on Swift Build. The helper runs on macOS; the service executable is built for Linux. If you use `--scratch-path`, pass the same value to both commands.
+
 ### Default registry
 
 If you don't include a registry name in the `--repository` argument, the plugin will publish your image to Docker Hub by default.

@@ -126,7 +126,7 @@ extension PluginError: CustomStringConvertible {
 
         let err = Pipe()
 
-        await withThrowingTaskGroup(of: Void.self) { group in
+        try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
                 enum LoggingState {
                     // Normal output is logged at 'progress' level.
@@ -183,6 +183,8 @@ extension PluginError: CustomStringConvertible {
                     errorPipe: err
                 )
             }
+            // Child errors are discarded unless the throwing task group's results are consumed.
+            try await group.waitForAll()
         }
     }
 }

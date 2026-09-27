@@ -24,3 +24,11 @@ swiftc -swift-version 6 -warnings-as-errors \
     "$REPO_ROOT/Tests/PluginTests/BuiltExecutableTests.swift" \
     -o "$TEST_DIR/artifact-discovery-tests"
 "$TEST_DIR/artifact-discovery-tests"
+
+# A failed helper launch must finish the pipe reader and fail the command.
+swiftc -swift-version 6 -warnings-as-errors \
+    "$REPO_ROOT/Plugins/ContainerImageBuilder/runner.swift" \
+    "$REPO_ROOT/Plugins/ContainerImageBuilder/Pipe+lines.swift" \
+    "$REPO_ROOT/Tests/PluginTests/RunnerTests.swift" \
+    -o "$TEST_DIR/runner-tests"
+"$TEST_DIR/runner-tests"

@@ -14,8 +14,17 @@
 
 import Foundation
 
-/// Error code returned if the process terminates because of an uncaught signal.
-public enum ExitCode: Error { case rawValue(Int32) }
+/// Error code returned if the process fails or terminates because of an uncaught signal.
+public enum ExitCode: Error, CustomStringConvertible {
+    case rawValue(Int32)
+
+    /// Human-readable termination status for plugin diagnostics.
+    public var description: String {
+        switch self {
+        case .rawValue(let status): return "Helper process failed with status \(status)"
+        }
+    }
+}
 
 /// Runs `command` with the given arguments and environment variables, capturing standard output and standard error.
 /// - Parameters:
@@ -25,7 +34,7 @@ public enum ExitCode: Error { case rawValue(Int32) }
 ///   - currentDirectory: The directory in which to run the executable.
 ///   - outputPipe: A Pipe to which to send anything the executable writes to standard output.
 ///   - errorPipe: A Pipe to which to send anything the executable writes to standard error.
-/// - Throws: `ExitCode` if the process terminates because of an uncaught signal.
+/// - Throws: The launch error, or `ExitCode` if the process exits unsuccessfully.
 public func run(
     command: URL,
     arguments: [String],
@@ -34,6 +43,12 @@ public func run(
     outputPipe: Pipe? = nil,
     errorPipe: Pipe? = nil
 ) async throws {
+    // A failed launch never lets Process close the parent's pipe ends. Close them on
+    // every exit path so readers receive EOF instead of waiting forever.
+    defer {
+        outputPipe?.fileHandleForWriting.closeFile()
+        errorPipe?.fileHandleForWriting.closeFile()
+    }
     let task = Process()
 
     task.executableURL = command
@@ -49,7 +64,12 @@ public func run(
             case .uncaughtSignal:
                 let error = ExitCode.rawValue(process.terminationStatus)
                 continuation.resume(throwing: error)
-            case .exit: continuation.resume(returning: ())
+            case .exit:
+                if process.terminationStatus == 0 {
+                    continuation.resume(returning: ())
+                } else {
+                    continuation.resume(throwing: ExitCode.rawValue(process.terminationStatus))
+                }
             @unknown default:
                 // This point should be unreachable.
                 continuation.resume(returning: ())
